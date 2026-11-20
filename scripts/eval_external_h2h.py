@@ -76,8 +76,8 @@ def main() -> None:
             if m["f1"] > best[1]["f1"]:
                 best = (th, m)
         results[name] = {"n": len(labels), "unsafe": sum(labels),
-                         "censer7": {"at_0.5": m05, "best": {"threshold": best[0], **best[1]}}}
-        print(f"[censer.7] {name}: n={len(labels)} @0.5 f1={m05['f1']:.4f} acc={m05['accuracy']:.4f} best@{best[0]:.2f} f1={best[1]['f1']:.4f}", flush=True)
+                         "barist1": {"at_0.5": m05, "best": {"threshold": best[0], **best[1]}}}
+        print(f"[barist.1] {name}: n={len(labels)} @0.5 f1={m05['f1']:.4f} acc={m05['accuracy']:.4f} best@{best[0]:.2f} f1={best[1]['f1']:.4f}", flush=True)
         for repo in ["unitary/unbiased-toxic-roberta", "unitary/toxic-bert"]:
             try:
                 r = eval_hf_model(repo, texts, labels, device)

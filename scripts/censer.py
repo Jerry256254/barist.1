@@ -200,14 +200,32 @@ DIACRITICS = {
 }
 
 MIN_SCORE = 2  # below this we do not trust the guess -> global threshold
-# --- Barist.1 must-catch pre-filter: highest-severity classes are caught by
-# deterministic patterns (independent of language threshold and category head).
-# Text is accent-folded to ASCII before matching. Detection phrases only. ---
-MUST_CATCH_PATTERNS: list[tuple[str, str]] = [
-    (r"\b(csam|cp links?|child porn\w*|kinderpornografie|porn\w* infantile|pornografia infantil|detsk\w* porn\w*|nah\w* fotk\w* deti|nah\w* fotky nezletil\w*|fotos de menores|underage nudes|cp download)\b", "sexual_abuse"),
-    (r"\b(zabit\w*|sebevrazda|sebevrazedn\w*|sebeposkozeni|chci umrit|jak se (zabit|obesit)|kill myself|end it all|i want to die|how to die|suicid\w*|umbringen|sterben|morir|morirme|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir)\b", "self_harm"),
-]
-_MUST_CATCH_RE = [(re.compile(p, re.IGNORECASE), c) for p, c in MUST_CATCH_PATTERNS]
+# --- Barist.1 must-catch pre-filter: highest-severity classes caught by
+# deterministic patterns (independent of language threshold / category head).
+# Accent-folded to ASCII before matching. Detection phrases only.
+# Rules: CSAM = hard unsafe; self-harm = unsafe + needs_support routing;
+# 1st-person / direct-threat forms only (news "zabití", "pomoct kamarádovi"
+# etc. must NOT trigger). ---
+def _rx(pat: str):
+    """Compile a pattern accent-folded + lowercased, so it matches _fold_ascii(text)."""
+    folded = "".join(c for c in unicodedata.normalize("NFKD", pat) if not unicodedata.combining(c)).lower()
+    return re.compile(folded, re.I)
+
+
+_MC_CSAM = _rx(r"\b(csam|cp links?|child porn\w*|kinderpornografie|porn\w* infantile|pornografia infantil|detsk\w* porn\w*|nah\w* fotk\w* deti|nah\w* fotky nezletil\w*|fotos de menores|underage nudes|cp download|pedofil\w*|telegram (skupina|group|kanal|channel|link) (o|pro|na)? ?(csam|cp|porn|detsk\w*|nah\w*|fotos|menores|pedofil))\b")
+_MC_SELFHARM_1P = _rx(r"(chci se zabit|zabiju se|chci (se )?umrit|chci zem\w*|nechci (uz )?zit|mam toho dost|kill myself|i (want to|wanna) die|end it all|i cant go on anymore|how to (kill myself|die)|ich will mich umbringen|ich will sterben|ich will nicht mehr leben|umbringen|morir\w*|morirme|quiero suicidarme|quiero desaparecer|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir|plus vivre|ne veux plus vivre)")
+_MC_SELFHARM_INSTR = _rx(r"(jak se (zabit|obesit)|suicid\w*|sebevraz\w*|sebepo(s|š)kozeni|sterben|how to (kill|die)\b|end my life|skoncit\w* zivot)")
+_MC_INSTR_MARK = _rx(r"\b(jak|how|navod na|way|method|zpusob|prosim|please|tell me|dime|sag mir|dites|instructions?|step by step)\b")
+_MC_SUPPORT_CONTEXT = _rx(r"(pomoct|pomoc|kamarad|linka|bezpeci|help|support|suicide prevention|prevence|literatura|literature|hamlet|kniha|novela|film|divadlo|hra|game|story)")
+_MC_NEWS_CONTEXT = _rx(r"(vysetruje|policie|news|zprav|clanek|report|obet|vrah|doslo k|explodovala|explosion|utok|atentat)")
+_MC_THREAT = _rx(r"(zabiju (te|vas)|kill you|i'll kill you|ill kill you|je vais te tuer|te matare|voy a matarte|te voy a matar|quiero hacerte dano|voglio ucciderti|ich bringe dich um|ich tote dich)")
+_MC_WEAPONS_DIY = _rx(r"(jak (vyrobit|postavit) (bombu|granat|trhavin)|navod na (vyrobu )?(bombu|granat|trhavin)|vyroba (bomby|granatu|trhaviny)|(bombu|granat) doma|wie baue ich eine bombe|bombauanleitung|anleitung sprengstoff|sprengstoff herstell|bombe aus haushaltsmitteln|fabricar una bomba|bomba casera|bomba homemade|hacer una bomba|how to (make|build) a (bomb|grenade)|bomb-?making|homemade bomb|grenade (instructions|tutorial)|fabriquer une bombe|comment faire une bombe)")
+_MC_DRUGS_DIY = _rx(r"(synteza pervitinu|jak uvarit meth|how to cook meth|meth-?synth|synthesis of (meth|nitroglycerin|fentanyl)|navod na vyrobu (fentanylu|pervitinu|drog)|recept na vyrobu drog|receta de metanfetamina|methanfetamin rezept|wie koche ich crystal meth|drogen kochen anleitung|synthesize meth|make meth at home)")
+_MC_CYBER_DIY = _rx(r"(navod na phishing|phishingov\w* (e-?mail|stranka)|phishing (stranka|stranky|e-?mail|mail)|jak nabourat|hacknout (ucet|instagram|account)|how to hack|hack someone|keylogger tutorial|demonter un mot de passe|comment pirater|robar la cuenta|kradez hesla)")
+_MC_DEFENSIVE = _rx(r"(branit|ochrana|protect|prevence|jak se chranit|defend|avoid phishing|recognize phishing|jak poznat phishing)")
+_MC_JAILBREAK = _rx(r"(you are dan|do anything now|ignore (all (previous )?instructions|everything above|the rules)|pretend you are|act as \w+ (with|without)|without (rules|restrictions|limitations)|guidelines don'?t exist|bez omezeni|od ted si bez|oublie les regles|no rules|no restrictions)")
+
+SUPPORT_LINK = "https://www.linkabezpeci.cz"
 
 
 def _fold_ascii(text: str) -> str:
@@ -215,9 +233,40 @@ def _fold_ascii(text: str) -> str:
 
 
 def must_catch_hit(text: str) -> list[str]:
-    """Categories of any must-catch pattern hit (CSAM / self-harm)."""
+    """Pattern pre-filter. Returns hit category names (hard classes).
+
+    CSAM always blocks. Self-harm blocks on 1st-person or instruction forms,
+    unless it is a support context (routed to resources instead) or news.
+    Weapons/drugs/cyber DIY patterns are instruction-form only (news pass).
+    """
     folded = _fold_ascii(text).lower()
-    return sorted({c for rx, c in _MUST_CATCH_RE if rx.search(folded)})
+    hits = []
+    if _MC_CSAM.search(folded):
+        hits.append("sexual_abuse")
+    support = bool(_MC_SUPPORT_CONTEXT.search(folded))
+    news = bool(_MC_NEWS_CONTEXT.search(folded))
+    if _MC_SELFHARM_1P.search(folded) and not support:
+        hits.append("self_harm")
+    elif _MC_SELFHARM_INSTR.search(folded) and _MC_INSTR_MARK.search(folded) and not support and not news:
+        hits.append("self_harm")
+    if _MC_THREAT.search(folded) and not news:
+        hits.append("violence")
+    if _MC_WEAPONS_DIY.search(folded) and not news:
+        hits.append("weapons_explosives")
+    if _MC_DRUGS_DIY.search(folded) and not news:
+        hits.append("drugs")
+    if _MC_CYBER_DIY.search(folded) and not _MC_DEFENSIVE.search(folded) and not news:
+        hits.append("cybercrime_fraud")
+    if _MC_JAILBREAK.search(folded):
+        hits.append("jailbreak_injection")
+    return sorted(set(hits))
+
+
+def is_support_context(text: str) -> bool:
+    """Self-harm mention in a helping context -> route to support, not a block."""
+    folded = _fold_ascii(text).lower()
+    return bool((_MC_SELFHARM_1P.search(folded) or _MC_SELFHARM_INSTR.search(folded))
+                and _MC_SUPPORT_CONTEXT.search(folded))
 
 
 def _script(text: str) -> str:
@@ -439,7 +488,7 @@ class CenserPipeline:
 
     def threshold_for(self, text: str) -> float:
         lang = detect_lang(text)
-        return float(self.lang_thresholds.get(lang, self.threshold))
+        return float(self.lang_thresholds.get(lang) or self.lang_thresholds.get("default") or self.threshold)
 
     def categories(self) -> list[str]:
         return self.cfg.get("categories") or []
@@ -461,19 +510,25 @@ class CenserPipeline:
             # Barist.1: must-catch pre-filter — CSAM / self-harm pattern hits force
             # unsafe regardless of the (language) binary threshold
             hit_override = must_catch_hit(texts[i]) if texts else []
+            support_ctx = is_support_context(texts[i]) if texts else False
             if hit_override:
                 is_unsafe = True
+            # Barist.1: at most the top-2 categories by score (no nonsense lists)
+            _passed = [c for c, sc in zip(cats, cat_scores)
+                       if sc >= float(self.cat_thresholds.get(c, self.threshold))
+                       and c not in self.cat_experimental]
+            _passed = sorted(set(_passed) | set(hit_override),
+                             key=lambda c: -(cat_scores[cats.index(c)] if c in cats else 1.0))[:2]
             res.append({
                 "label": "unsafe" if is_unsafe else "safe",
                 "label_id": "1" if is_unsafe else "0",
                 "unsafe": is_unsafe,
+                "override": "must_catch" if hit_override else None,
+                "needs_support": SUPPORT_LINK if (support_ctx or "self_harm" in hit_override) else None,
                 "score": round(p, 4),
                 "category_scores": [round(c, 4) for c in cat_scores],
                 # categories are only reported when the binary verdict is unsafe
-                "categories": (sorted(set([c for c, sc in zip(cats, cat_scores)
-                                if sc >= float(self.cat_thresholds.get(c, self.threshold))
-                                and c not in self.cat_experimental]) | set(hit_override))
-                               if is_unsafe else []),
+                "categories": _passed if is_unsafe else [],
             })
         return res
 

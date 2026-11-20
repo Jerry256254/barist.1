@@ -8,7 +8,7 @@ Same held-out test split for every model: `data/processed/test.jsonl` (n=6496), 
 | Censer.4 (old) | 0.9M | 3.6 MB | 0.874 | 0.868 | 0.824 | **0.845** | 1.39 ms | 1708 texts/s | 95 MB |
 | Censer.1 (old) | 1.1M | 4.5 MB | 0.865 | 0.848 | 0.823 | **0.835** | 1.68 ms | 1697 texts/s | 97 MB |
 | Censer.2 (prev) | 7.3M | 29.4 MB | 0.863 | 0.861 | 0.799 | **0.829** | 2.77 ms | 551 texts/s | 171 MB |
-| Censer.9 (ours) | 0.9M | 3.6 MB | 0.858 | 0.851 | 0.799 | **0.824** | 1.39 ms | 1860 texts/s | 105 MB |
+| Censer.9 (this work) | 0.9M | 3.6 MB | 0.858 | 0.851 | 0.799 | **0.824** | 1.39 ms | 1860 texts/s | 105 MB |
 | Censer.3 (old) | 14.4M | 57.7 MB | 0.857 | 0.855 | 0.792 | **0.822** | 4.36 ms | 270 texts/s | 240 MB |
 | unbiased-toxic-roberta | 124.7M | 0.0 MB | 0.822 | 0.940 | 0.612 | **0.741** | 14.85 ms | 65 texts/s | 771 MB |
 | toxic-bert | 109.5M | 0.0 MB | 0.794 | 0.965 | 0.526 | **0.681** | 14.08 ms | 68 texts/s | 708 MB |

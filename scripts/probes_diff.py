@@ -16,7 +16,7 @@ from kuclab.probes import PROBES
 CKPTS = [
     ("Censer.5", "/home/tvadmin/censer.5/checkpoints/best.pt", "/home/tvadmin/censer.5/checkpoints/tokenizer"),
     ("Censer.6", "/home/tvadmin/censer.6/checkpoints/best.pt", "/home/tvadmin/censer.6/checkpoints/tokenizer"),
-    ("Barist.1", "checkpoints9/best.pt", "checkpoints9/tokenizer"),
+    ("Barist.1", "checkpoints_b1/best.pt", "checkpoints_b1/tokenizer"),
     ("Censer.7", "/home/tvadmin/censer.7/checkpoints/best.pt", "/home/tvadmin/censer.7/checkpoints/tokenizer"),
 ]
 

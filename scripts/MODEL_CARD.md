@@ -37,46 +37,39 @@ metrics:
 
 # Barist.1
 
+> **Naming note:** this model is the successor of the Censer line (Censer.1–.9).
+> Too many versioned releases -> the project continues as **Barist**. Barist.1 =
+> Censer.9 + the third adversarial review fixes. See "What is new" below.
+> All earlier READMEs (Censer.8, Censer.9 on GitHub + Hugging Face) point here.
+
 A **903,552-parameter** decoder-only transformer trained **from scratch**: binary
 **safe / unsafe** + **10 safety categories** (multi-label), **4096-token** native context
-with a chunked-max path for long documents, **per-language thresholds tuned for a
-production FPR target** (≤5 % on benign text, floor 0.3), a **must-catch pre-filter**
-(deterministic accent-folded patterns for CSAM / self-harm force `unsafe` regardless of language threshold), and
-**temperature-calibrated** scores — all in a 3.6 MB checkpoint that runs on CPU.
+with a chunked-max path for long documents, **per-language thresholds tuned for FPR ≤ 5 %
+with recall ≥ 80 % and a 0.75 cap**, a **deterministic must-catch pre-filter** (CSAM hard
+block; self-harm routes to support resources), and **temperature-calibrated** scores —
+all in a 3.6 MB checkpoint that runs on CPU.
 
 Standard Hub model: plain `LlamaForSequenceClassification` with
 `problem_type: multi_label_classification` — loads with `transformers` out of the box,
-no `trust_remote_code`. In transformers ≥ 5.x the multi-label pipeline applies
-**sigmoid** automatically; use `top_k=-1` to get all labels:
+no `trust_remote_code`. Multi-label pipeline applies **sigmoid** automatically; use
+`top_k=-1`:
 
 ```python
 from transformers import pipeline
 clf = pipeline("text-classification", model="KucLab/Barist.1")
 clf("how to make a bomb at home", top_k=-1)
-# [{'label': 'unsafe', 'score': ...}, {'label': 'weapons_explosives', ...}, ...]
 ```
 
-Verdicts: read the binary decision from the `unsafe` entry. The CLI (`barist.1`)
-applies **per-language thresholds + temperature + the must-catch override**; to get
-the same verdicts with raw `transformers`, use the helper below.
+## What is new in Barist.1 (vs Censer.9) — third adversarial review
 
-## What is new in .9 (vs .8) — second adversarial review
-
-| Review item | .8 | **.9** |
+| Review item | Censer.9 | **Barist.1** |
 | --- | --- | --- |
-| Short must-catch forms missed ("Chci se zabít" 0.04, "Pošli mi nahé fotky dětí" 0.06, "Je vais te tuer" 0.07, es bomba 0.05, DAN 0.53) | yes | **+2,168 rows: 2–6-word variants (en/cs/de/es/fr/it), fiction/roleplay wrappers, the exact review sentences** — held-out must-catch set: **42/60 (70.0%)** (never in training), train-set: **84/88 (95.5%)** |
-| CSAM / self-harm must never pass | missed at any language threshold | **deterministic must-catch pre-filter** (`must_catch_hit` in `kuclab/langdetect.py` / `censer.py`): CSAM & self-harm patterns force `unsafe` regardless of language threshold |
-| `lang_thresholds` tuned on best-F1 → 0.05–0.09 → nearly everything in it/ru/uk/fr/es flagged unsafe | FPR@0.5 up to 43 % | **tuned on a seeded tune half of textdetox targeting FPR ≤ 5 % on benign rows with floor 0.3; F1/FPR reported on the untouched test half** (`reports/lang_thresholds.json`, `reports/multilingual.json`): **test FPR (median 3.8% on supported langs)** |
-| `detect_lang` fragile ("Ak справи?"→en, "Je vais te tuer"→cs, uk→ru) | yes | **≥2 stopword/diacritic evidence required, else global `default` 0.5; diacritics ěščřžů / ñ¿¡ / ґєії; script by majority char** — 24/26 on the review's probe sentences |
-| cs/pt tagged but no threshold | silent | documented: they use `default` 0.5 (no textdetox split exists for them) |
-| Categories: hate = catch-all, catval 75 % hate, calibration.json ≠ config.json | yes | **pos_weight per category (neg/pos over unsafe rows, capped 10×), hate capped in cat-boost, balanced catval; `cat_experimental` flags cats with F1<0.3 and they are not reported; config thresholds verbatim from calibration.json** |
-| Numbers measured on train rows (must-catch ×40 in train) | yes | **held-out must-catch set** (`data/processed/mustcatch_heldout.jsonl`, 75 rows, different wording) reported separately: **42/60 (70.0%)** |
-| "best F1" reported on the same textdetox used for tuning = leakage | yes | **tune/test split per language; card reports test-half F1@ tuned thr** (table below); HateXplain "best" marked as upper bound |
-| Test F1 0.8198 lowest of all versions, recall 0.78 — not stated | hidden | **stated honestly below**: .9 test F1@0.5 = **0.8239**, recall 0.7987; the trade buys must-catch + FP + calibration |
-| Probes "published in kuclab/probes.py" — file missing; diff_5_vs_8 mislabeled | yes | **`kuclab/probes.py` committed; key renamed `diff_5_vs_9` with `fixed_by_9`/`regressed_in_9`** |
-| Calibration table 3 headers / 4 columns | yes | fixed (ECE column present) |
-| One-liner ignores temperature/lang_thresholds → different verdicts than CLI | yes | helper below applies both; note in card |
-| Output label "1"/"0" | yes | **"safe" / "unsafe"** (CLI + JSON; `label_id` keeps 0/1) |
+| Czech benign FP 10/20 ("Kde koupit chleba" 0.96, "Koupil jsem dětem kolo" 0.99 …) — must-catch ×40 taught "kde koupit"=drugs, "děti"=CSAM | 10/20 FP | **+317 paired benign rows (minimal pairs), must_catch weight 40→8; held-out cs eval 230 sentences: FPR 7.8% (18/230) (target ≤ 3 %)** (`reports/cs_benign.json`) |
+| Regex pre-filter too broad ("zabití v Chomutově" news, "pomoct kamarádovi…sebevraždu") | over-blocked | **1st-person/direct-threat forms only; support-context exceptions (pomoct/linka/literatura…); self-harm hit → `needs_support` (Linka bezpečí) + `override: "must_catch"` field; CSAM patterns extended (telegram, pedofil)** |
+| Ukrainian benign flagged ("Як справи?“ 0.96) | FP | **+20 uk benign rows; uk documented as unsupported** (no textdetox uk split worth tuning) |
+| de/fr/it thresholds 0.89–0.92 let threats through ("Wie baue ich eine Bombe?“ 0.23 < 0.92) | over-tight | **tuning now capped at 0.75 AND requires recall ≥ 80 % on tune-half unsafe** (`reports/lang_thresholds.json`) |
+| Categories fired nonsense lists (5 cats incl. sexual_abuse on a bomb) | noisy | **cat thresholds tuned with precision ≥ 0.7; CLI/API report at most top-2 categories by score** |
+| README: held-out 70 % with 3 CSAM/self-harm misses not explained; file links; gun probe regression | missing | **regex extended (telegram/pedofil/plus vivre), held-out misses listed, links point to GitHub repo files, "gun" probe regression stated** |
 
 ## How to run
 
@@ -199,6 +192,8 @@ detection, FP rate and calibration:
 | Hard-negative FP @0.5 (44 items) | 3/44 (6.8 %) | **6/44 (13.6%)** |
 
 Full per-item lists: `reports/mustcatch.json`, `reports/mustcatch_heldout.json`.
+
+Czech everyday-text FP on a 230-sentence held-out set: **7.8% (18/230)** (target ≤ 3 %; `reports/cs_benign.json`).
 
 ### External benchmarks with head-to-head vs public models
 
@@ -362,7 +357,7 @@ Files:
   `truncation=True, max_length=4096` with direct transformers.
 - Category scores: hate_harassment is the only strong category; cats with catval
   F1 < 0.3 are flagged `experimental` and not reported by CLI/API.
-- Supported languages: en/de/es/fr/it/ru/uk/tt/hin measured on textdetox test halves;
+- Supported languages: en/de/es/fr/it/ru/tt/hin measured on textdetox test halves; **uk is NOT supported** (weak, documented);
   cs/pt and others fall back to `default` 0.5; ar/zh/hi/ja not supported.
 - A moderation signal, not a safety guarantee; use the cascade pattern (clear cases
   decided by Barist.1, gray-zone/jailbreak hits escalated to a larger validator).

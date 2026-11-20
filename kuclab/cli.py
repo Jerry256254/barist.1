@@ -5,7 +5,7 @@ import json
 import sys
 
 from .infer import SafetyModel
-from .langdetect import detect_lang, must_catch_hit
+from .langdetect import detect_lang, must_catch_hit, is_support_context, SUPPORT_LINK
 
 
 
@@ -16,8 +16,8 @@ BANNER = "Barist.1 - napis text, Enter. 'exit' pro konec."
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="kuclab-cneser",
-        description="Barist.1: tiny multilingual safety classifier. Prints 1 (unsafe) or 0 (safe).",
+        prog="barist.1",
+        description="Barist.1: tiny multilingual safety classifier. Prints safe or unsafe.",
     )
     parser.add_argument("text", nargs="*", help="text to classify; omit to read stdin or use --repl")
     parser.add_argument("--checkpoint", default="checkpoints/best.pt")
@@ -66,8 +66,8 @@ class HubClassifier:
         self.model.to(device)
         self.device = device
 
-    def predict(self, text: str) -> tuple[str, float, list[str]]:
-        """Returns (label 'safe'/'unsafe', probability of unsafe, fired categories)."""
+    def predict(self, text: str) -> tuple[str, float, list[str], str | None, str | None]:
+        """Returns (label, p_unsafe, categories, override, needs_support)."""
         import torch.nn.functional as F
 
         n_labels = int(self.model.config.num_labels)
@@ -85,21 +85,25 @@ class HubClassifier:
         if n_labels > 2:
             id2label = self.model.config.id2label
             cat_thr = getattr(self.model.config, "cat_thresholds", None) or {}
-            for name in must_catch_hit(text):  # Barist.1 pattern pre-filter
+            cat_exp = set(getattr(self.model.config, "cat_experimental", []) or [])
+            hit = must_catch_hit(text)  # Barist.1 pattern pre-filter
+            for name in hit:
                 label = "unsafe"
                 if name not in cats:
                     cats.append(name)
             if label == "unsafe":
-                for i in range(2, n_labels):
-                    name = id2label[i]
-                    if float(probs[i]) >= float(cat_thr.get(name, 0.5)) and name not in cats:
-                        cats.append(name)
-        return label, p, cats
+                passed = [(float(probs[i]), id2label[i]) for i in range(2, n_labels)
+                          if float(probs[i]) >= float(cat_thr.get(id2label[i], 0.5)) and id2label[i] not in cat_exp]
+                passed.sort(reverse=True)
+                cats = [name for _, name in passed[:2]] + [c for c in cats if c not in {n for _, n in passed[:2]}]  # top-2 + pre-filter hits
+        support = is_support_context(text) or "self_harm" in must_catch_hit(text)
+        override = "must_catch" if must_catch_hit(text) else None
+        return label, p, cats, override, (SUPPORT_LINK if support else None)
 
 
 def run_ui(predict, source: str) -> int:
     """Small interactive terminal UI: phrase in, safe/unsafe + score out."""
-    print(f"Censer - interactive terminal UI  [{source}]")
+    print(f"Barist.1 - interactive terminal UI  [{source}]")
     print("Type a phrase, Enter to classify. 'exit' to quit.\n")
     while True:
         try:
@@ -112,9 +116,13 @@ def run_ui(predict, source: str) -> int:
             return 0
         if not text:
             continue
-        label, prob, cats = predict(text)
+        label, prob, cats, override, support = predict(text)
         colored = _color(f"{label:6s}", "31" if label == "unsafe" else "32")
         extra = f"  [{', '.join(cats)}]" if cats else ""
+        if override:
+            extra += f"  (override: {override})"
+        if support:
+            extra += f"  (needs_support: {support})"
         print(f"{colored} {prob:.4f}{extra} | {text}")
 
 
@@ -135,9 +143,10 @@ def ui_main(argv: list[str] | None = None) -> int:
     if args.checkpoint:
         local = SafetyModel(checkpoint=args.checkpoint, device=args.device)
 
-        def predict(text: str) -> tuple[str, float, list[str]]:
+        def predict(text: str) -> tuple[str, float, list[str], str | None, str | None]:
             v = local.predict(text)
-            return ("unsafe" if v.is_unsafe else "safe"), v.probability, v.categories or []
+            return ("unsafe" if v.is_unsafe else "safe"), v.probability, v.categories or [], \
+                getattr(v, "override", None), getattr(v, "needs_support", None)
 
         source = str(args.checkpoint)
     else:
@@ -148,13 +157,19 @@ def ui_main(argv: list[str] | None = None) -> int:
 
     text = " ".join(args.text).strip()
     if text:
-        label, prob, cats = predict(text)
+        label, prob, cats, override, support = predict(text)
         if args.json:
             print(json.dumps({"label": label, "unsafe": label == "unsafe", "score": round(prob, 4),
-                              **({"categories": cats} if cats else {})}))
+                              **({"categories": cats} if cats else {}),
+                              **({"override": override} if override else {}),
+                              **({"needs_support": support} if support else {})}))
         else:
             colored = _color(f"{label:6s}", "31" if label == "unsafe" else "32")
             extra = f"  [{', '.join(cats)}]" if cats else ""
+            if override:
+                extra += f"  (override: {override})"
+            if support:
+                extra += f"  (needs_support: {support})"
             print(f"{colored} {prob:.4f}{extra}")
         return 0
     return run_ui(predict, source)

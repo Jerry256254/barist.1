@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 
 from .evaluate import load_checkpoint, predict_full, predict_proba_chunked
-from .langdetect import must_catch_hit
+from .langdetect import detect_lang, must_catch_hit, is_support_context, SUPPORT_LINK
 
 
 @dataclass
@@ -19,7 +19,7 @@ class Verdict:
 
     @property
     def is_unsafe(self) -> bool:
-        return self.label == "1"
+        return self.label in ("1", "unsafe")
 
     def as_dict(self) -> dict:
         d = {"label": self.label, "unsafe": self.is_unsafe, "score": round(self.probability, 4)}
@@ -53,15 +53,21 @@ class SafetyModel:
         probs = predict_proba_chunked(self.model, self.tokenizer, [text[: self.max_chars * 8]], self.max_len, self.device, temperature=self.temperature)[0]
         cats = self._cats()
         row = predict_full(self.model, self.tokenizer, [text[: self.max_chars]], self.max_len, self.device, temperature=self.temperature)[0]
-        is_unsafe = probs >= self.threshold
-        hit = must_catch_hit(text)  # Barist.1 pattern pre-filter (CSAM / self-harm)
+        lang_thr = self.state.get("lang_thresholds") or {}
+        thr = float(lang_thr.get(detect_lang(text), lang_thr.get("default", self.threshold)))
+        is_unsafe = probs >= thr
+        hit = must_catch_hit(text)  # Barist.1 pattern pre-filter (CSAM / self-harm / DIY / jailbreak)
         if hit:
             is_unsafe = True
+        support = is_support_context(text) or "self_harm" in hit
         flagged = None
         if cats and is_unsafe:
             flagged = sorted(set([c for c, p in zip(cats, row[2:]) if p >= self.threshold]) | set(hit))
-        return Verdict(label="unsafe" if is_unsafe else "safe", probability=probs,
-                       threshold=self.threshold, categories=flagged)
+        v = Verdict(label="unsafe" if is_unsafe else "safe", probability=probs,
+                    threshold=thr, categories=flagged)
+        v.override = "must_catch" if hit else None
+        v.needs_support = SUPPORT_LINK if support else None
+        return v
 
     def predict_batch(self, texts: list[str]) -> list[Verdict]:
         trimmed = [t[: self.max_chars * 8] for t in texts]

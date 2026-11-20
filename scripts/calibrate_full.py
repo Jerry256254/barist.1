@@ -111,7 +111,16 @@ def main() -> None:
                                 "prevalence": 0.0, "experimental": True,
                                 "note": "no positives in catval; default 0.5"}
             continue
-        best = (0.5, -1.0)
+        # Barist.1: maximize F1 subject to precision >= 0.7 (avoid nonsense cats);
+        # fallback = 0.5 with its real F1 (so experimental flags use true values)
+        def _f1_at(th):
+            tp = sum(1 for p, l in zip(probs, yv) if p >= th and l == 1)
+            fp = sum(1 for p, l in zip(probs, yv) if p >= th and l == 0)
+            fn = sum(1 for p, l in zip(probs, yv) if p < th and l == 1)
+            prec = tp / (tp + fp) if tp + fp else 0.0
+            rec = tp / (tp + fn) if tp + fn else 0.0
+            return 2 * prec * rec / (prec + rec) if prec + rec else 0.0
+        best = (0.5, _f1_at(0.5))
         for t in [x / 100 for x in range(20, 96)]:
             tp = sum(1 for p, l in zip(probs, yv) if p >= t and l == 1)
             fp = sum(1 for p, l in zip(probs, yv) if p >= t and l == 0)
@@ -119,7 +128,7 @@ def main() -> None:
             prec = tp / (tp + fp) if tp + fp else 0.0
             rec = tp / (tp + fn) if tp + fn else 0.0
             f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
-            if f1 > best[1]:
+            if prec >= 0.7 and f1 > best[1]:
                 best = (t, f1)
         thresholds[cat] = best[0]
         categories[cat] = {"best_threshold": best[0], "f1_at_best": best[1], "ece": ece(probs, yv),
