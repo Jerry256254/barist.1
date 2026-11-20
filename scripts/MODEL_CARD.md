@@ -64,9 +64,9 @@ clf("how to make a bomb at home", top_k=-1)
 
 | Review item | Censer.9 | **Barist.1** |
 | --- | --- | --- |
-| Czech benign FP 10/20 ("Kde koupit chleba" 0.96, "Koupil jsem dětem kolo" 0.99 …) — must-catch ×40 taught "kde koupit"=drugs, "děti"=CSAM | 10/20 FP | **+317 paired benign rows (minimal pairs), must_catch weight 40→8; held-out cs eval 230 sentences: FPR 7.8% (18/230) (target ≤ 3 %)** (`reports/cs_benign.json`) |
+| Czech benign FP 10/20 ("Kde koupit chleba" 0.96, "Koupil jsem dětem kolo" 0.99 …) — must-catch ×40 taught "kde koupit"=drugs, "děti"=CSAM | 10/20 FP | **+1,607 paired benign / everyday / news / uk rows (minimal pairs), must_catch weight 40→8–12; held-out cs eval 230 sentences: FPR 6.5% (15/230)** (target ≤ 3 %; review sentences 13/13 safe now) (`reports/cs_benign.json`) |
 | Regex pre-filter too broad ("zabití v Chomutově" news, "pomoct kamarádovi…sebevraždu") | over-blocked | **1st-person/direct-threat forms only; support-context exceptions (pomoct/linka/literatura…); self-harm hit → `needs_support` (Linka bezpečí) + `override: "must_catch"` field; CSAM patterns extended (telegram, pedofil)** |
-| Ukrainian benign flagged ("Як справи?“ 0.96) | FP | **+20 uk benign rows; uk documented as unsupported** (no textdetox uk split worth tuning) |
+| Ukrainian benign flagged ("Як справи?“ 0.96, "Як справи, druже?“ 0.98) | FP | **+ uk benign rows (phase L: "Як справи, druже?" now 0.45 safe); uk documented as NOT supported** (textdetox uk F1@0.5 ≈ 0.10) |
 | de/fr/it thresholds 0.89–0.92 let threats through ("Wie baue ich eine Bombe?“ 0.23 < 0.92) | over-tight | **tuning now capped at 0.75 AND requires recall ≥ 80 % on tune-half unsafe** (`reports/lang_thresholds.json`) |
 | Categories fired nonsense lists (5 cats incl. sexual_abuse on a bomb) | noisy | **cat thresholds tuned with precision ≥ 0.7; CLI/API report at most top-2 categories by score** |
 | README: held-out 70 % with 3 CSAM/self-harm misses not explained; file links; gun probe regression | missing | **regex extended (telegram/pedofil/plus vivre), held-out misses listed, links point to GitHub repo files, "gun" probe regression stated** |
@@ -130,10 +130,9 @@ For the exact heuristic use `kuclab/langdetect.detect_lang` from the GitHub pack
 
 Native context is 4096 tokens (`model_max_length: 4096`, tokenizer truncates beyond it),
 but a **single pass pools only the last token**, so in long documents unsafe content in
-the middle can be missed (measured F1 0.083 on 25-row synthetic docs). Therefore
+the middle can be missed (measured F1 0.077 on 25-row synthetic docs). Therefore
 `censer.py` / the API **always** split inputs longer than 256 tokens into overlapping
-chunks (256 tokens, stride 192) and aggregate by **max** (measured F1 0.998 on the same
-docs). For direct `transformers` use, pass `truncation=True, max_length=4096` or chunk
+chunks (256 tokens, stride 192) and aggregate by **max** (measured F1 0.995 on the same docs). For direct `transformers` use, pass `truncation=True, max_length=4096` or chunk
 manually.
 
 ### Batch HTTP API + Docker
@@ -170,30 +169,28 @@ over `"0" "1" "a".."j"` = safe / unsafe / 10 categories.
 
 ## Metrics
 
-Internal held-out test split (6,496 rows, byte-identical across Censer.1–.9), binary
-threshold 0.5. **Honest note:** .9's raw F1@0.5 is the lowest of the Censer family —
-the weighted must-catch/hard-negative training trades ~0.02–0.03 F1 for must-catch
-detection, FP rate and calibration:
+Internal held-out test split (6,496 rows, byte-identical across the whole Censer/Barist family, md5-pinned), binary threshold 0.5. **Honest note:** raw F1@0.5 is below Censer.5 by design — weighted must-catch/hard-negative training and the Czech-FP fixes trade ~0.03 F1 for must-catch detection, lower FP rate and calibration:
 
-| Metric | Censer.5 | Censer.7 | Barist.1 | **Barist.1** |
-| --- | --- | --- | --- | --- |
-| Test F1 @0.5 | **0.8490** | 0.8348 | 0.8198 | **0.8239** |
-| Test F1 @ tuned thr (0.36) | — | — | 0.8361 | **0.8339 @ 0.40** |
-| Test accuracy | 0.876 | 0.8655 | 0.8568 | **0.8578** |
-| Precision / recall | 0.864 / 0.834 | 0.855 / 0.816 | 0.862 / 0.781 | **0.8508 / 0.7987** |
-| Probes (97 hand-written, `kuclab/probes.py`) | 95/97 | 95/97 | 97/97 | **96/97** |
+| Metric | Censer.5 | Censer.9 | **Barist.1** |
+| --- | --- | --- | --- |
+| Test F1 @0.5 | **0.8490** | 0.8239 | **0.8180** |
+| Test F1 @ tuned thr | — | 0.8339 @ 0.40 | **0.8345 @ 0.35** |
+| Test accuracy | 0.876 | 0.8578 | **0.8556** |
+| Precision / recall | 0.864 / 0.834 | 0.8508 / 0.7987 | **0.8615 / 0.7787** |
+| Probes (97 hand-written, `kuclab/probes.py` in this repo) | 95/97 | 96/97 | **96/97** |
 
 ### Must-catch (adversarial review cases)
 
-| Set | .8 | **.9** |
-| --- | --- | --- |
-| Train-visible must-catch (88 items) @0.5 | 83/88 (94.3 %) | **84/88 (95.5%)** |
-| **Held-out must-catch (75 items, never in training)** @0.5 | not measured | **42/60 (70.0%)** (benign controls FP 4/15) |
-| Hard-negative FP @0.5 (44 items) | 3/44 (6.8 %) | **6/44 (13.6%)** |
+| Set | Censer.8 | Censer.9 | **Barist.1** |
+| --- | --- | --- | --- |
+| Train-visible must-catch (88 items) @0.5, model only | 83/88 (94.3 %) | 84/88 (95.5 %) | **74/88 (84.1 %)** |
+| **Held-out must-catch (75 items, never in training)** — model only @0.5 | not measured | 42/60 (70.0 %) | **34/60 (56.7 %)** (benign controls FP 4/15) |
+| Held-out must-catch **with the pre-filter applied** (as the CLI/API do) | — | — | **55/60 (91.7 %)**, 0 CSAM/self-harm passes |
+| Hard-negative FP @0.5 (44 items) | 3/44 (6.8 %) | 6/44 (13.6 %) | **1/44 (2.3 %)** |
 
 Full per-item lists: `reports/mustcatch.json`, `reports/mustcatch_heldout.json`.
 
-Czech everyday-text FP on a 230-sentence held-out set: **7.8% (18/230)** (target ≤ 3 %; `reports/cs_benign.json`).
+Czech everyday-text FP on a 230-sentence held-out set (with pre-filter): **6.5% (15/230)** (Censer.9: 10/20 on the review sentences; target ≤ 3 %; `reports/cs_benign.json`).
 
 ### External benchmarks with head-to-head vs public models
 
@@ -204,97 +201,94 @@ set (reported for reference, not used for tuning). Full numbers in
 
 | Dataset | Model | F1@0.5 | best F1 (upper bound) | latency |
 | --- | --- | --- | --- | --- |
-| ToxiGen annotated (n=940, 402 unsafe) | **Barist.1** | **0.559** | 0.616 @ 0.13 | 1.24 ms |
-| ToxiGen | unitary/unbiased-toxic-roberta | 0.443 | — | ~14 ms |
-| HateXplain test (n=1,924, 1,376 unsafe) | **Barist.1** | **0.742** | 0.834 @ 0.05 | 1.24 ms |
-| HateXplain test | unitary/unbiased-toxic-roberta | 0.577 | — | ~14 ms |
+| ToxiGen annotated (n=940, 402 unsafe) | **Barist.1** | **0.540** | 0.617 @ 0.11 | 1.29 ms |
+| ToxiGen | unitary/toxic-bert | 0.599 | 0.599 @ 0.50 | ~14 ms |
+| ToxiGen | unitary/unbiased-toxic-roberta | 0.443 | 0.483 @ 0.05 | ~14 ms |
+| HateXplain test (n=1924, 1376 unsafe) | **Barist.1** | **0.722** | 0.834 @ 0.05 | 1.29 ms |
+| HateXplain test | unitary/toxic-bert | 0.834 | 0.834 @ 0.50 | ~14 ms |
+| HateXplain test | unitary/unbiased-toxic-roberta | 0.577 | 0.690 @ 0.05 | ~14 ms |
 
 ### Adversarial robustness (detection rate on attacked unsafe texts, n=160)
 
-| Attack | .8 | **.9** |
+| Attack | Censer.9 | **Barist.1** |
 | --- | --- | --- |
-| clean | 100% | **99.4%** |
-| typo | 92.5% | **94.4%** |
-| leetspeak | 96.9% | **97.5%** |
-| homoglyph | 100% | **100.0%** |
-| zero-width | 100% | **100.0%** |
-| case flip | 96.3% | **95.6%** |
+| clean | 98.8% |
+| typo | 88.8% |
+| leet | 94.4% |
+| homoglyph | 100.0% |
+| zero_width | 99.4% |
+| case | 94.4% |
 
 ### Long-context (300 synthetic docs of 25 held-out rows, avg 2,178 tokens)
 
 | Inference | F1 |
 | --- | --- |
-| truncate at 192 tokens | 0.582 |
-| native 4096 single pass (NOT recommended for long docs) | 0.083 |
-| **chunked 256/192 max (default everywhere)** | **0.997 (acc 0.993)** |
+| truncate at 192 tokens | 0.578 |
+| native 4096 single pass (NOT recommended for long docs) | 0.077 |
+| **chunked 256/192 max (default everywhere)** | **0.995 (acc 0.990)** |
 
 ### Calibration
 
-Binary score: temperature scaling fitted on the val split, **T = 0.7130**, stored in
-`config.json: temperature` and in the checkpoint. ECE before 0.0520 → after
-**0.0184**. Per-category thresholds tuned on held-out catval ship verbatim as
+Binary score: temperature scaling fitted on the val split, **T = 0.7202**, stored in
+`config.json: temperature` and in the checkpoint. ECE before 0.0579 → after
+**0.0303**. Per-category thresholds tuned on held-out catval ship verbatim as
 `config.json: cat_thresholds` (same values as `reports/calibration.json`); categories
 with catval F1 < 0.3 are listed in `cat_experimental` and are **not** reported by the
 CLI/API (scores remain in `category_scores`):
 
 | Category | threshold | F1@thr (catval) | ECE | experimental |
 | --- | --- | --- | --- | --- |
-| violence | 0.59 | 0.250 | 0.222 | yes |
-| weapons_explosives | 0.48 | 0.265 | 0.080 | yes |
-| drugs | 0.38 | 0.145 | 0.085 | yes |
-| hate_harassment | 0.20 | 0.921 | 0.204 | no |
-| sexual_abuse | 0.36 | 0.211 | 0.094 | yes |
-| self_harm | 0.20 | 0.148 | 0.048 | yes |
-| cybercrime_fraud | 0.28 | 0.149 | 0.088 | yes |
-| jailbreak_injection | 0.30 | 0.188 | 0.061 | yes |
-| illegal_marketplace | 0.21 | 0.159 | 0.044 | yes |
-| other_unsafe | 0.26 | 0.683 | 0.031 | no |
+| violence | 0.50 | 0.244 | 0.146 | yes |
+| weapons_explosives | 0.50 | 0.253 | 0.057 | yes |
+| drugs | 0.50 | 0.000 | 0.060 | yes |
+| hate_harassment | 0.20 | 0.919 | 0.202 | no |
+| sexual_abuse | 0.50 | 0.072 | 0.077 | yes |
+| self_harm | 0.50 | 0.000 | 0.037 | yes |
+| cybercrime_fraud | 0.50 | 0.000 | 0.058 | yes |
+| jailbreak_injection | 0.50 | 0.040 | 0.042 | yes |
+| illegal_marketplace | 0.50 | 0.000 | 0.030 | yes |
+| other_unsafe | 0.45 | 0.654 | 0.013 | no |
 
 ![Reliability diagram](figs/reliability.png)
 
 ### Multilingual — per-language binary metrics (textdetox, never in training)
 
-Thresholds are tuned on a seeded **tune half** (target FPR ≤ 5 % on benign, floor 0.3)
-and reported on the untouched **test half**. Supported languages
-(en/de/es/fr/it/ru/uk/tt/hin tagged; cs/pt and others use `default` 0.5 — documented,
-no textdetox split exists for them). ar/zh/hi/ja are NOT supported and not tagged.
+Thresholds are tuned on a seeded **tune half** of textdetox (target FPR ≤ 5 % on benign tune rows AND recall ≥ 80 % on unsafe tune rows, hard floor 0.3, **hard cap 0.75** — Barist.1 fix) and reported on the untouched **test half**. Only languages with full-set F1@0.5 ≥ 0.45 ship a per-language threshold in `config.json: lang_thresholds` (currently de/en/es/fr/it, all 0.5 after the cap); everything else uses `default` 0.5. ar/zh/hi/ja are NOT supported and not tagged; **uk is not supported** (F1@0.5 ≈ 0.10 — documented). ar/zh/hi/ja are NOT supported and not tagged.
 
 | Language | n | F1@0.5 | tuned thr | test F1@thr | test FPR@thr |
 | --- | --- | --- | --- | --- | --- |
-| en | 800 | 0.811 | 0.79 | 0.797 | 0.095 |
-| de | 800 | 0.606 | 0.92 | 0.038 | 0.025 |
-| es | 800 | 0.644 | 0.50 | 0.653 | 0.609 |
-| fr | 800 | 0.505 | 0.89 | 0.250 | 0.038 |
-| it | 800 | 0.595 | 0.90 | 0.125 | 0.021 |
-| ru | 800 | 0.193 | 0.58 | 0.174 | 0.031 |
-| uk | 800 | 0.237 | 0.71 | 0.197 | 0.045 |
-| tt | 800 | 0.394 | 0.90 | 0.097 | 0.047 |
-| hin | 800 | 0.541 | 0.87 | 0.115 | 0.036 |
-| am | 800 | 0.067 | 0.46 | 0.085 | 0.062 |
-| ar | 800 | 0.005 | 0.30 | 0.010 | 0.000 |
-| he | 800 | 0.029 | 0.38 | 0.036 | 0.017 |
+| en | 800 | 0.814 | 0.50 | 0.791 | 0.379 |
+| de | 800 | 0.522 | 0.50 | 0.500 | 0.392 |
+| es | 800 | 0.612 | 0.50 | 0.661 | 0.435 |
+| fr | 800 | 0.463 | 0.50 | 0.522 | 0.164 |
+| it | 800 | 0.555 | 0.50 | 0.542 | 0.350 |
+| ru | 800 | 0.040 | 0.30 | 0.089 | 0.016 |
+| uk | 800 | 0.045 | 0.30 | 0.109 | 0.019 |
+| tt | 800 | 0.116 | 0.62 | 0.127 | 0.030 |
+| hin | 800 | 0.446 | 0.50 | 0.473 | 0.179 |
+| am | 800 | 0.109 | 0.66 | 0.070 | 0.046 |
+| ar | 800 | 0.005 | 0.30 | 0.010 | 0.005 |
+| he | 800 | 0.024 | 0.30 | 0.036 | 0.008 |
 | hi | 800 | 0.000 | 0.30 | 0.000 | 0.000 |
-| zh | 800 | 0.010 | 0.30 | 0.017 | 0.023 |
+| zh | 800 | 0.000 | 0.32 | 0.019 | 0.015 |
 | ja | 800 | 0.000 | 0.30 | 0.000 | 0.000 |
 
 ### Cascade pre-filter
 
-On 2,000 held-out rows: 30.5% escalated (gray-zone / jailbreak-category
-hits), cascade accuracy 0.8780.
+On 2000 held-out rows: 29.8% escalated (gray-zone / jailbreak-category hits), cascade accuracy 0.8775.
 
 ## Benchmark (latency / throughput / size)
 
-Single latency number everywhere below: **1.24 ms** single-text on
-AMD Radeon RX 9060 XT (ROCm); CPU-only: **0.56 ms**. Full numbers in
+Single latency number everywhere below: **1.29 ms** single-text on AMD Radeon RX 9060 XT (ROCm); CPU-only (Ryzen, ONNX-free PyTorch): **0.75 ms**. Full numbers in
 `reports/benchmark.json` / `reports/benchmark_cpu.json`.
 
-| Metric | .9 GPU | .9 CPU |
+| Metric | Barist.1 GPU | Barist.1 CPU |
 | --- | --- | --- |
 | Parameters | 903,552 | 903,552 |
 | Checkpoint | 3.6 MB fp32 (1.8 MB fp16, 0.9 MB int8) | same |
-| Single-text latency | 1.24 ms | 0.56 ms |
-| Single throughput | 810 texts/s | 1773 texts/s |
-| Batch-8 throughput | 5811 texts/s | 4541 texts/s |
+| Single-text latency | 1.29 ms | 0.75 ms |
+| Single throughput | 775 texts/s | 1334 texts/s |
+| Batch-8 throughput | 5610 texts/s | 4202 texts/s |
 | Peak VRAM | 85 MB | — |
 
 ## Comparison — internal test split (6,496 rows, threshold 0.5)
@@ -304,7 +298,7 @@ see the external head-to-head above for public benchmarks.
 
 | Model | Params | Checkpoint | F1 | Latency | Throughput (b=8) |
 | --- | --- | --- | --- | --- | --- |
-| KucLab/Barist.1 (this work) | 0.9M | 3.6 MB | 0.8239 | 1.39 ms | 1860/s |
+| KucLab/Barist.1 (this work) | 0.9M | 3.6 MB | **0.8180** | 1.29 ms | 5610/s |
 | KucLab/Censer.5 (prev) | 0.9M | 3.6 MB | 0.8490 | 1.35 ms | 1828/s |
 | KucLab/Censer.4 (old) | 0.9M | 3.6 MB | 0.8453 | 1.39 ms | 1708/s |
 | KucLab/Censer.3 (old) | 14.4M | 57.7 MB | 0.8224 | 4.36 ms | 270/s |
