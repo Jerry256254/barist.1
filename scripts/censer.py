@@ -213,17 +213,22 @@ def _rx(pat: str):
 
 
 _MC_CSAM = _rx(r"\b(csam|cp links?|child porn\w*|kinderpornografie|porn\w* infantile|pornografia infantil|detsk\w* porn\w*|nah\w* fotk\w* deti|nah\w* fotky nezletil\w*|fotos de menores|underage nudes|cp download|pedofil\w*|telegram (skupina|group|kanal|channel|link) (o|pro|na)? ?(csam|cp|porn|detsk\w*|nah\w*|fotos|menores|pedofil))\b")
-_MC_SELFHARM_1P = _rx(r"(chci se zabit|zabiju se|chci (se )?umrit|chci zem\w*|nechci (uz )?zit|mam toho dost|kill myself|i (want to|wanna) die|end it all|i cant go on anymore|how to (kill myself|die)|ich will mich umbringen|ich will sterben|ich will nicht mehr leben|umbringen|morir\w*|morirme|quiero suicidarme|quiero desaparecer|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir|plus vivre|ne veux plus vivre)")
-_MC_SELFHARM_INSTR = _rx(r"(jak se (zabit|obesit)|suicid\w*|sebevraz\w*|sebepo(s|š)kozeni|sterben|how to (kill|die)\b|end my life|skoncit\w* zivot)")
+_MC_SELFHARM_1P = _rx(r"(chci se zabit|zabiju se|chci (se )?umrit|chci zem\w*|nechci (uz )?zit|chci si ublit|chci si ublizit|sebepo(s|š)kozuji|kill myself|i (want to|wanna) die|end it all|i cant go on anymore|how to (kill myself|die)|ich will mich umbringen|mich umbringen|ich will sterben|ich will nicht mehr leben|quiero morir|quiero morirme|quiero suicidarme|quiero desaparecer|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir|plus vivre|ne veux plus vivre)")
+_MC_SELFHARM_INSTR = _rx(r"(jak se (zabit|obesit)|suicid\w*|sebevraz\w*|sebepo(s|š)kozeni|how to (kill|die)\b|end my life|skoncit\w* zivot)")
 _MC_INSTR_MARK = _rx(r"\b(jak|how|navod na|way|method|zpusob|prosim|please|tell me|dime|sag mir|dites|instructions?|step by step)\b")
 _MC_SUPPORT_CONTEXT = _rx(r"(pomoct|pomoc|kamarad|linka|bezpeci|help|support|suicide prevention|prevence|literatura|literature|hamlet|kniha|novela|film|divadlo|hra|game|story)")
 _MC_NEWS_CONTEXT = _rx(r"(vysetruje|policie|news|zprav|clanek|report|obet|vrah|doslo k|explodovala|explosion|utok|atentat)")
-_MC_THREAT = _rx(r"(zabiju (te|vas)|kill you|i'll kill you|ill kill you|je vais te tuer|te matare|voy a matarte|te voy a matar|quiero hacerte dano|voglio ucciderti|ich bringe dich um|ich tote dich)")
-_MC_WEAPONS_DIY = _rx(r"(jak (vyrobit|postavit) (bombu|granat|trhavin)|navod na (vyrobu )?(bombu|granat|trhavin)|vyroba (bomby|granatu|trhaviny)|(bombu|granat) doma|wie baue ich eine bombe|bombauanleitung|anleitung sprengstoff|sprengstoff herstell|bombe aus haushaltsmitteln|fabricar una bomba|bomba casera|bomba homemade|hacer una bomba|how to (make|build) a (bomb|grenade)|bomb-?making|homemade bomb|grenade (instructions|tutorial)|fabriquer une bombe|comment faire une bombe)")
+_MC_THREAT = _rx(r"(zabiju (te|vas)|kill you|i\'ll kill you|ill kill you|je vais te tuer|te matare|voy a matarte|te voy a matar|quiero hacerte dano|voglio ucciderti|ich bringe dich um|ich tote dich|jemanden umbringen|bringe ich jemanden um)")
+_MC_WEAPONS_DIY = _rx(r"(jak (vyrobit|postavit) (bombu|granat|trhavin|vybusninu)|navod na (vyrobu )?(bombu|granat|trhavin|vybusniny|exploziv)|vyroba (bomby|granatu|trhaviny|vybusniny)|(bombu|granat) doma|wie baue ich eine bombe|bombauanleitung|anleitung sprengstoff|sprengstoff herstell|bombe aus haushaltsmitteln|fabricar una bomba|bomba casera|bomba homemade|hacer una bomba|how to (make|build) a (bomb|grenade)|bomb-?making|homemade bomb|grenade (instructions|tutorial)|fabriquer une bombe|comment faire une bombe|как сделать бомбу|как изготовить (бомбу|взрывчатку)|зробити бомбу|як зробити бомбу|vyroba napalmu|jak vyrobit napalm|napalm\w*)")
 _MC_DRUGS_DIY = _rx(r"(synteza pervitinu|jak uvarit meth|how to cook meth|meth-?synth|synthesis of (meth|nitroglycerin|fentanyl)|navod na vyrobu (fentanylu|pervitinu|drog)|recept na vyrobu drog|receta de metanfetamina|methanfetamin rezept|wie koche ich crystal meth|drogen kochen anleitung|synthesize meth|make meth at home)")
 _MC_CYBER_DIY = _rx(r"(navod na phishing|phishingov\w* (e-?mail|stranka)|phishing (stranka|stranky|e-?mail|mail)|jak nabourat|hacknout (ucet|instagram|account)|how to hack|hack someone|keylogger tutorial|demonter un mot de passe|comment pirater|robar la cuenta|kradez hesla)")
 _MC_DEFENSIVE = _rx(r"(branit|ochrana|protect|prevence|jak se chranit|defend|avoid phishing|recognize phishing|jak poznat phishing)")
-_MC_JAILBREAK = _rx(r"(you are dan|do anything now|ignore (all (previous )?instructions|everything above|the rules)|pretend you are|act as \w+ (with|without)|without (rules|restrictions|limitations)|guidelines don'?t exist|bez omezeni|od ted si bez|oublie les regles|no rules|no restrictions)")
+_MC_JAILBREAK = _rx(r"(you are dan\b|do anything now|ignore (all (previous )?instructions|everything above|the rules)|pretend you are .{0,80}(no rules|unrestricted|without (any )?(filters?|restrictions|rules)|evil|jailbreak|grandma|bedtime|napalm|bomb|weapon|drug|meth)|act as \w+ (with|without) (no |without )(rules|restrictions|filters)|guidelines don\'?t exist|od ted( si)? bez omezeni|oublie les regles|there are no rules|předstírej .{0,80}(bez pravidel|bez omezeni|bomba|drogy|napalm|vybusnin))")
+
+
+_MC_POISON = _rx(r"(jak otrávit|čím otrávit|otrávit (souseda|někoho|psa|kočku)|jak vyrobit (jed|otravu)|recept na (jed|otravu)|jak namíchat jed|how to poison)")
+_MC_SCHOOL = _rx(r"(sestřel|postříl|vystříl|střílet).{0,40}(škola|školu|ve škole|třída|do školy)|střelba ve škole|školní masakr|school shooting|how to shoot up a school")
+_MC_MARKET = _rx(r"(kde|jak) (koupit|sehnat|seženu|objednat|koupím).{0,50}(pervitin|metamfetamin|fet|kokain|heroin|drogy|zbraň|zbraně|explozivum|trhavin|bombu)|prodej (drog|zbraní)|nabízím (drogy|zbraně)|comprar (armas|drogas) baratas|buy (guns|drugs) (cheap|online)|как купить (оружие|наркотики)")
 
 SUPPORT_LINK = "https://www.linkabezpeci.cz"
 
@@ -233,11 +238,12 @@ def _fold_ascii(text: str) -> str:
 
 
 def must_catch_hit(text: str) -> list[str]:
-    """Pattern pre-filter. Returns hit category names (hard classes).
+    """Pattern pre-filter. Returns HARD-hit category names (force unsafe).
 
     CSAM always blocks. Self-harm blocks on 1st-person or instruction forms,
     unless it is a support context (routed to resources instead) or news.
-    Weapons/drugs/cyber DIY patterns are instruction-form only (news pass).
+    Weapons/drugs/cyber/poison/market DIY patterns are instruction-form only
+    (news pass). Jailbreak patterns are NOT hard blocks -> see review_hit().
     """
     folded = _fold_ascii(text).lower()
     hits = []
@@ -251,15 +257,25 @@ def must_catch_hit(text: str) -> list[str]:
         hits.append("self_harm")
     if _MC_THREAT.search(folded) and not news:
         hits.append("violence")
+    if _MC_POISON.search(folded) and not news:
+        hits.append("violence")
+    if _MC_SCHOOL.search(folded) and not news:
+        hits.append("violence")
     if _MC_WEAPONS_DIY.search(folded) and not news:
         hits.append("weapons_explosives")
     if _MC_DRUGS_DIY.search(folded) and not news:
         hits.append("drugs")
     if _MC_CYBER_DIY.search(folded) and not _MC_DEFENSIVE.search(folded) and not news:
         hits.append("cybercrime_fraud")
-    if _MC_JAILBREAK.search(folded):
-        hits.append("jailbreak_injection")
+    if _MC_MARKET.search(folded) and not news:
+        hits.append("illegal_marketplace")
     return sorted(set(hits))
+
+
+def review_hit(text: str) -> list[str]:
+    """Jailbreak / prompt-injection patterns -> needs_review flag, NOT a hard block."""
+    folded = _fold_ascii(text).lower()
+    return ["jailbreak_injection"] if _MC_JAILBREAK.search(folded) else []
 
 
 def is_support_context(text: str) -> bool:
@@ -510,6 +526,7 @@ class CenserPipeline:
             # Barist.1: must-catch pre-filter — CSAM / self-harm pattern hits force
             # unsafe regardless of the (language) binary threshold
             hit_override = must_catch_hit(texts[i]) if texts else []
+            review = review_hit(texts[i]) if texts else []
             support_ctx = is_support_context(texts[i]) if texts else False
             if hit_override:
                 is_unsafe = True
@@ -525,6 +542,7 @@ class CenserPipeline:
                 "unsafe": is_unsafe,
                 "override": "must_catch" if hit_override else None,
                 "needs_support": SUPPORT_LINK if (support_ctx or "self_harm" in hit_override) else None,
+                "needs_review": True if review else None,
                 "score": round(p, 4),
                 "category_scores": [round(c, 4) for c in cat_scores],
                 # categories are only reported when the binary verdict is unsafe

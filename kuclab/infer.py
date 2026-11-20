@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 
 from .evaluate import load_checkpoint, predict_full, predict_proba_chunked
-from .langdetect import detect_lang, must_catch_hit, is_support_context, SUPPORT_LINK
+from .langdetect import detect_lang, must_catch_hit, review_hit, is_support_context, SUPPORT_LINK
 
 
 @dataclass
@@ -16,6 +16,7 @@ class Verdict:
     threshold: float
     categories: list[str] | None = None
     chunks: int = 1
+    needs_review: bool = False
 
     @property
     def is_unsafe(self) -> bool:
@@ -25,6 +26,8 @@ class Verdict:
         d = {"label": self.label, "unsafe": self.is_unsafe, "score": round(self.probability, 4)}
         if self.categories:
             d["categories"] = self.categories
+        if getattr(self, "needs_review", False):
+            d["needs_review"] = True
         if self.chunks > 1:
             d["chunks"] = self.chunks
         return d
@@ -56,7 +59,8 @@ class SafetyModel:
         lang_thr = self.state.get("lang_thresholds") or {}
         thr = float(lang_thr.get(detect_lang(text), lang_thr.get("default", self.threshold)))
         is_unsafe = probs >= thr
-        hit = must_catch_hit(text)  # Barist.1 pattern pre-filter (CSAM / self-harm / DIY / jailbreak)
+        hit = must_catch_hit(text)  # Barist.1 hard pre-filter (CSAM / self-harm / DIY / poison / market)
+        review = review_hit(text)   # jailbreak patterns -> needs_review, not a hard block
         if hit:
             is_unsafe = True
         support = is_support_context(text) or "self_harm" in hit
@@ -67,6 +71,7 @@ class SafetyModel:
                     threshold=thr, categories=flagged)
         v.override = "must_catch" if hit else None
         v.needs_support = SUPPORT_LINK if support else None
+        v.needs_review = bool(review)
         return v
 
     def predict_batch(self, texts: list[str]) -> list[Verdict]:

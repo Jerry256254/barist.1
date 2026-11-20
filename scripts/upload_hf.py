@@ -164,7 +164,7 @@ def llama_config(state: dict, tok_meta: dict, tok_ids: dict) -> dict:
         "bos_token_id": tok_ids["[BOS]"],
         "eos_token_id": tok_ids["[ASSISTANT]"],
         # Censer-specific metadata, kept for the standalone censer.py:
-        "name": state.get("name", "Barist.1"),
+        "name": "Barist.1",
         "max_chars": int(state.get("max_chars", 4000)),
         "answer_ids": list(tok_meta["answer_ids"]),
         "special_tokens": list(tok_meta["special_tokens"]),

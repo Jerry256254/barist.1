@@ -42,22 +42,34 @@ def main() -> None:
     fp = sum(1 for p in hn_probs if p >= 0.5)
     misses = [(t, round(p, 3)) for t, p in zip(mc_texts, mc_probs) if p < 0.5]  # noqa
     fps = [(t, round(p, 3)) for t, p in zip(all_safe, hn_probs) if p >= 0.5]
-    # held-out set (never in training): honest generalization number
-    heldout_path = Path("data/processed/mustcatch_heldout.jsonl")
+    # held-out sets (never in training): honest generalization numbers.
+    # mustcatch_dev.jsonl = the ORIGINAL held-out set (the regex was later tuned on its
+    # misses, so it is dev-only now). mustcatch_heldout2.jsonl = fresh formulations,
+    # disjoint from train/regex — the release gate is model-only detection on heldout2.
+    from kuclab.langdetect import must_catch_hit
     held = {}
-    if heldout_path.exists():
-        hrows = [json.loads(l) for l in open(heldout_path, encoding="utf-8")]
+    for name, path, rep in [
+        ("dev", Path("data/processed/mustcatch_dev.jsonl"), "reports/mustcatch_dev.json"),
+        ("heldout2", Path("data/processed/mustcatch_heldout2.jsonl"), "reports/mustcatch_heldout.json"),
+    ]:
+        if not path.exists():
+            continue
+        hrows = [json.loads(l) for l in open(path, encoding="utf-8")]
         h_texts = [r["text"] for r in hrows]
         h_labels = [int(r["label"]) for r in hrows]
         h_probs = predict_proba(model, tok, h_texts, max_len, device, batch_size=64)
         h_det = sum(1 for l, p in zip(h_labels, h_probs) if l == 1 and p >= 0.5)
         h_fp = sum(1 for l, p in zip(h_labels, h_probs) if l == 0 and p >= 0.5)
-        held = {"n": len(hrows), "unsafe_n": sum(h_labels), "detected@0.5": h_det,
-                "benign_n": sum(1 for l in h_labels if l == 0), "false_positives@0.5": h_fp,
-                "misses": [(t, round(p, 3)) for t, l, p in zip(h_texts, h_labels, h_probs) if l == 1 and p < 0.5],
-                "fps": [(t, round(p, 3)) for t, l, p in zip(h_texts, h_labels, h_probs) if l == 0 and p >= 0.5]}
-        print(f"HELD-OUT must-catch detection @0.5: {h_det}/{sum(h_labels)}; benign FP: {h_fp}/{sum(1 for l in h_labels if l==0)}")
-        Path("reports/mustcatch_heldout.json").write_text(json.dumps(held, indent=2, ensure_ascii=False))
+        h_det_pf = sum(1 for t, l, p in zip(h_texts, h_labels, h_probs) if l == 1 and (p >= 0.5 or must_catch_hit(t)))
+        h_fp_pf = sum(1 for t, l, p in zip(h_texts, h_labels, h_probs) if l == 0 and (p >= 0.5 or must_catch_hit(t)))
+        held[name] = {"n": len(hrows), "unsafe_n": sum(h_labels), "detected@0.5": h_det,
+                      "detected@0.5_with_prefilter": h_det_pf,
+                      "benign_n": sum(1 for l in h_labels if l == 0), "false_positives@0.5": h_fp,
+                      "fp@0.5_with_prefilter": h_fp_pf,
+                      "misses": [(t, round(p, 3)) for t, l, p in zip(h_texts, h_labels, h_probs) if l == 1 and p < 0.5],
+                      "fps": [(t, round(p, 3)) for t, l, p in zip(h_texts, h_labels, h_probs) if l == 0 and p >= 0.5]}
+        print(f"[{name}] model-only detection @0.5: {h_det}/{sum(h_labels)}; with pre-filter: {h_det_pf}/{sum(h_labels)}; benign FP: {h_fp} (pf {h_fp_pf})/{sum(1 for l in h_labels if l==0)}")
+        Path(rep).write_text(json.dumps(held[name], indent=2, ensure_ascii=False))
     print(f"must-catch detection @0.5: {det}/{len(mc_probs)} ({det/len(mc_probs):.1%})")
     for t, p in misses:
         print(f"  MISS ({p}): {t}")

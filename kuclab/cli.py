@@ -5,7 +5,7 @@ import json
 import sys
 
 from .infer import SafetyModel
-from .langdetect import detect_lang, must_catch_hit, is_support_context, SUPPORT_LINK
+from .langdetect import detect_lang, must_catch_hit, review_hit, is_support_context, SUPPORT_LINK
 
 
 
@@ -66,8 +66,8 @@ class HubClassifier:
         self.model.to(device)
         self.device = device
 
-    def predict(self, text: str) -> tuple[str, float, list[str], str | None, str | None]:
-        """Returns (label, p_unsafe, categories, override, needs_support)."""
+    def predict(self, text: str) -> tuple[str, float, list[str], str | None, str | None, bool]:
+        """Returns (label, p_unsafe, categories, override, needs_support, needs_review)."""
         import torch.nn.functional as F
 
         n_labels = int(self.model.config.num_labels)
@@ -86,7 +86,7 @@ class HubClassifier:
             id2label = self.model.config.id2label
             cat_thr = getattr(self.model.config, "cat_thresholds", None) or {}
             cat_exp = set(getattr(self.model.config, "cat_experimental", []) or [])
-            hit = must_catch_hit(text)  # Barist.1 pattern pre-filter
+            hit = must_catch_hit(text)  # Barist.1 hard pre-filter
             for name in hit:
                 label = "unsafe"
                 if name not in cats:
@@ -96,9 +96,11 @@ class HubClassifier:
                           if float(probs[i]) >= float(cat_thr.get(id2label[i], 0.5)) and id2label[i] not in cat_exp]
                 passed.sort(reverse=True)
                 cats = [name for _, name in passed[:2]] + [c for c in cats if c not in {n for _, n in passed[:2]}]  # top-2 + pre-filter hits
-        support = is_support_context(text) or "self_harm" in must_catch_hit(text)
-        override = "must_catch" if must_catch_hit(text) else None
-        return label, p, cats, override, (SUPPORT_LINK if support else None)
+        hit = must_catch_hit(text)
+        support = is_support_context(text) or "self_harm" in hit
+        override = "must_catch" if hit else None
+        review = bool(review_hit(text))
+        return label, p, cats, override, (SUPPORT_LINK if support else None), review
 
 
 def run_ui(predict, source: str) -> int:
@@ -116,13 +118,15 @@ def run_ui(predict, source: str) -> int:
             return 0
         if not text:
             continue
-        label, prob, cats, override, support = predict(text)
+        label, prob, cats, override, support, review = predict(text)
         colored = _color(f"{label:6s}", "31" if label == "unsafe" else "32")
         extra = f"  [{', '.join(cats)}]" if cats else ""
         if override:
             extra += f"  (override: {override})"
         if support:
             extra += f"  (needs_support: {support})"
+        if review:
+            extra += "  (needs_review)"
         print(f"{colored} {prob:.4f}{extra} | {text}")
 
 
@@ -143,10 +147,10 @@ def ui_main(argv: list[str] | None = None) -> int:
     if args.checkpoint:
         local = SafetyModel(checkpoint=args.checkpoint, device=args.device)
 
-        def predict(text: str) -> tuple[str, float, list[str], str | None, str | None]:
+        def predict(text: str) -> tuple[str, float, list[str], str | None, str | None, bool]:
             v = local.predict(text)
             return ("unsafe" if v.is_unsafe else "safe"), v.probability, v.categories or [], \
-                getattr(v, "override", None), getattr(v, "needs_support", None)
+                getattr(v, "override", None), getattr(v, "needs_support", None), getattr(v, "needs_review", False)
 
         source = str(args.checkpoint)
     else:
@@ -157,12 +161,13 @@ def ui_main(argv: list[str] | None = None) -> int:
 
     text = " ".join(args.text).strip()
     if text:
-        label, prob, cats, override, support = predict(text)
+        label, prob, cats, override, support, review = predict(text)
         if args.json:
             print(json.dumps({"label": label, "unsafe": label == "unsafe", "score": round(prob, 4),
                               **({"categories": cats} if cats else {}),
                               **({"override": override} if override else {}),
-                              **({"needs_support": support} if support else {})}))
+                              **({"needs_support": support} if support else {}),
+                              **({"needs_review": True} if review else {})}))
         else:
             colored = _color(f"{label:6s}", "31" if label == "unsafe" else "32")
             extra = f"  [{', '.join(cats)}]" if cats else ""
@@ -170,6 +175,8 @@ def ui_main(argv: list[str] | None = None) -> int:
                 extra += f"  (override: {override})"
             if support:
                 extra += f"  (needs_support: {support})"
+            if review:
+                extra += "  (needs_review)"
             print(f"{colored} {prob:.4f}{extra}")
         return 0
     return run_ui(predict, source)

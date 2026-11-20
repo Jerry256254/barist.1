@@ -38,6 +38,13 @@ unsafe ...   (must-catch pre-filter)
 | Categories fired nonsense (5 cats incl. sexual_abuse on a bomb) | noisy | **cat thresholds tuned with precision ≥ 0.7 (fallback 0.5); CLI/API report at most top-2 categories; categories with catval F1 < 0.3 flagged `cat_experimental` and not reported** |
 | README honesty (held-out 70 % with CSAM/self-harm misses unexplained, dead file links, "gun" probe regression hidden) | missing | **pre-filter extended so the held-out CSAM/self-harm misses are caught at inference; all report files uploaded to the Hub repo; regressions stated in the card** |
 
+| Fourth adversarial review (see card): | | |
+| Held-out contaminated by regex | "55/60" meaningless | **new clean `mustcatch_heldout2.jsonl` (91 rows, disjoint from train+regex); old set = `mustcatch_dev.jsonl` (dev only); gate = model-only heldout2** |
+| Model weaker than .9 model-only | 34/60 | **phases M/N/O: +1,806 unsafe paraphrases (×20–25) + benign pairs; heldout2 model-only reported honestly in card** |
+| Regex FP ("mám toho dost", "pirate joke", "no rules football", "morirò dal ridere") | over-blocked | **pre-filter v3: bare phrases removed, jailbreak → `needs_review` (not a block), +poison/school/market/ru-uk patterns** |
+| cs model FP (bomba slang, města, koncerty) | FP | **+336 benign rows (slang, počasí ×14 měst, doprava, krimi zprávy, obrana)** |
+| Files (launcher docstring, config name, README dup, lang_thresholds) | inconsistent | **fixed/documented** |
+
 ## Install & run
 
 ```bash
@@ -83,6 +90,11 @@ Long inputs: chunked-max (256 tokens / stride 192, aggregate by max) is applied
 automatically in `censer.py` and the API — do NOT rely on the native 4096-token
 single pass for long documents (last-token pooling). Direct `transformers`:
 pass `truncation=True, max_length=4096`.
+
+Note: the standalone inference script is still named `censer.py` (historical name, kept so old
+links keep working) — it is Barist.1's inference code. `lang_thresholds` in config.json currently
+ship as all-0.5 (per-language tuning effectively disabled after the 0.75 cap); language detection
+still routes everything to `default` 0.5.
 
 Quantized / ONNX inference without transformers:
 `python censer.py --prefer-quant "..."` loads the 0.9 MB int8 checkpoint;
