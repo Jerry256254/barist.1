@@ -6,6 +6,15 @@ from pathlib import Path
 import torch
 
 from .evaluate import load_checkpoint, predict_full, predict_proba_chunked
+
+CAT_PRIORITY = ["sexual_abuse", "self_harm", "violence", "weapons_explosives", "drugs",
+                "cybercrime_fraud", "jailbreak_injection", "illegal_marketplace", "other_unsafe",
+                "hate_harassment"]  # hate last: catch-all
+
+
+def _cat_rank(c: str) -> int:
+    return CAT_PRIORITY.index(c) if c in CAT_PRIORITY else 99
+
 from .langdetect import detect_lang, must_catch_hit, review_hit, is_support_context, SUPPORT_LINK
 
 
@@ -64,9 +73,17 @@ class SafetyModel:
         if hit:
             is_unsafe = True
         support = is_support_context(text) or "self_harm" in hit
+        if not support and cats and "self_harm" in cats:
+            sh = row[2 + cats.index("self_harm")]
+            if sh >= 0.3:  # model-level self-harm signal -> support resources even without regex
+                support = True
         flagged = None
         if cats and is_unsafe:
-            flagged = sorted(set([c for c, p in zip(cats, row[2:]) if p >= self.threshold]) | set(hit))
+            _fired = [c for c, p in zip(cats, row[2:]) if p >= self.threshold]
+            flagged = sorted(set(_fired) | set(hit), key=lambda c: (_cat_rank(c), -dict(zip(cats, row[2:])).get(c, 1.0)))
+            if not flagged:
+                # unsafe must always carry >=1 category: top-1 by score
+                flagged = [max(cats, key=lambda c: dict(zip(cats, row[2:]))[c])]
         v = Verdict(label="unsafe" if is_unsafe else "safe", probability=probs,
                     threshold=thr, categories=flagged)
         v.override = "must_catch" if hit else None

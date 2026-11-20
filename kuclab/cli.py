@@ -5,6 +5,15 @@ import json
 import sys
 
 from .infer import SafetyModel
+
+CAT_PRIORITY = ["sexual_abuse", "self_harm", "violence", "weapons_explosives", "drugs",
+                "cybercrime_fraud", "jailbreak_injection", "illegal_marketplace", "other_unsafe",
+                "hate_harassment"]  # hate last: catch-all
+
+
+def _cat_rank(c: str) -> int:
+    return CAT_PRIORITY.index(c) if c in CAT_PRIORITY else 99
+
 from .langdetect import detect_lang, must_catch_hit, review_hit, is_support_context, SUPPORT_LINK
 
 
@@ -92,12 +101,18 @@ class HubClassifier:
                 if name not in cats:
                     cats.append(name)
             if label == "unsafe":
-                passed = [(float(probs[i]), id2label[i]) for i in range(2, n_labels)
-                          if float(probs[i]) >= float(cat_thr.get(id2label[i], 0.5)) and id2label[i] not in cat_exp]
-                passed.sort(reverse=True)
-                cats = [name for _, name in passed[:2]] + [c for c in cats if c not in {n for _, n in passed[:2]}]  # top-2 + pre-filter hits
+                fired = [(float(probs[i]), id2label[i]) for i in range(2, n_labels)
+                         if float(probs[i]) >= float(cat_thr.get(id2label[i], 0.5)) and id2label[i] not in cat_exp]
+                fired.sort(key=lambda x: (_cat_rank(x[1]), -x[0]))
+                if not fired:  # unsafe must always carry >=1 category: top-1 by score
+                    fired = [max(((float(probs[i]), id2label[i]) for i in range(2, n_labels)), key=lambda x: x[0])]
+                cats = [name for _, name in fired[:2]] + [c for c in cats if c not in {n for _, n in fired[:2]}]  # top-2 + pre-filter hits
         hit = must_catch_hit(text)
         support = is_support_context(text) or "self_harm" in hit
+        if not support and n_labels > 2 and "self_harm" in id2label.values():
+            i_sh = [i for i, v in id2label.items() if v == "self_harm"][0]
+            if float(probs[i_sh]) >= 0.3:
+                support = True
         override = "must_catch" if hit else None
         review = bool(review_hit(text))
         return label, p, cats, override, (SUPPORT_LINK if support else None), review

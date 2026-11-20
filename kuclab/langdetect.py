@@ -98,13 +98,13 @@ def _rx(pat: str):
 
 
 _MC_CSAM = _rx(r"\b(csam|cp links?|child porn\w*|kinderpornografie|porn\w* infantile|pornografia infantil|detsk\w* porn\w*|nah\w* fotk\w* deti|nah\w* fotky nezletil\w*|fotos de menores|underage nudes|cp download|pedofil\w*|telegram (skupina|group|kanal|channel|link) (o|pro|na)? ?(csam|cp|porn|detsk\w*|nah\w*|fotos|menores|pedofil))\b")
-_MC_SELFHARM_1P = _rx(r"(chci se zabit|zabiju se|chci (se )?umrit|chci zem\w*|nechci (uz )?zit|chci si ublit|chci si ublizit|sebepo(s|š)kozuji|kill myself|i (want to|wanna) die|end it all|i cant go on anymore|how to (kill myself|die)|ich will mich umbringen|mich umbringen|ich will sterben|ich will nicht mehr leben|quiero morir|quiero morirme|quiero suicidarme|quiero desaparecer|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir|plus vivre|ne veux plus vivre)")
+_MC_SELFHARM_1P = _rx(r"(chci se zabit|zabiju se|chci (se )?umrit|chci zem\w*|nechci (uz )?zit|chci si ubliz\w*|sebepo(s|š)kozuji|rezuju se|rezat se|podrezat( si)? zily|prasky na zabit|predavkovat se|rezu se(?! smichy)|kill myself|i (want to|wanna) die|end it all|i cant go on anymore|how to (kill myself|die)|ich will mich umbringen|mich umbringen|ich will sterben|ich will nicht mehr leben|quiero morir|quiero morirme|quiero suicidarme|quiero desaparecer|voglio (uccidermi|morire|sparire)|me suicider|je veux mourir|plus vivre|ne veux plus vivre)")
 _MC_SELFHARM_INSTR = _rx(r"(jak se (zabit|obesit)|suicid\w*|sebevraz\w*|sebepo(s|š)kozeni|how to (kill|die)\b|end my life|skoncit\w* zivot)")
 _MC_INSTR_MARK = _rx(r"\b(jak|how|navod na|way|method|zpusob|prosim|please|tell me|dime|sag mir|dites|instructions?|step by step)\b")
 _MC_SUPPORT_CONTEXT = _rx(r"(pomoct|pomoc|kamarad|linka|bezpeci|help|support|suicide prevention|prevence|literatura|literature|hamlet|kniha|novela|film|divadlo|hra|game|story)")
 _MC_NEWS_CONTEXT = _rx(r"(vysetruje|policie|news|zprav|clanek|report|obet|vrah|doslo k|explodovala|explosion|utok|atentat)")
 _MC_THREAT = _rx(r"(zabiju (te|vas)|kill you|i\'ll kill you|ill kill you|je vais te tuer|te matare|voy a matarte|te voy a matar|quiero hacerte dano|voglio ucciderti|ich bringe dich um|ich tote dich|jemanden umbringen|bringe ich jemanden um)")
-_MC_WEAPONS_DIY = _rx(r"(jak (vyrobit|postavit) (bombu|granat|trhavin|vybusninu)|navod na (vyrobu )?(bombu|granat|trhavin|vybusniny|exploziv)|vyroba (bomby|granatu|trhaviny|vybusniny)|(bombu|granat) doma|wie baue ich eine bombe|bombauanleitung|anleitung sprengstoff|sprengstoff herstell|bombe aus haushaltsmitteln|fabricar una bomba|bomba casera|bomba homemade|hacer una bomba|how to (make|build) a (bomb|grenade)|bomb-?making|homemade bomb|grenade (instructions|tutorial)|fabriquer une bombe|comment faire une bombe|как сделать бомбу|как изготовить (бомбу|взрывчатку)|зробити бомбу|як зробити бомбу|vyroba napalmu|jak vyrobit napalm|napalm\w*)")
+_MC_WEAPONS_DIY = _rx(r"(jak (vyrobit|postavit) (bombu|granat|trhavin|vybusninu)|navod na (vyrobu )?(bombu|granat|trhavin|vybusniny|exploziv)|vyroba (bomby|granatu|trhaviny|vybusniny)|(bombu|granat) doma|wie baue ich eine bombe|bombauleitung|anleitung sprengstoff|sprengstoff herstell|bombe aus haushaltsmitteln|fabricar una bomba|bomba casera|bomba homemade|hacer una bomba|how to (make|build) a (bomb|grenade)|bomb-?making|homemade bomb|grenade (instructions|tutorial)|fabriquer une bombe|comment faire une bombe|как сделать бомбу|как изготовить (бомбу|взрывчатку)|зробити бомбу|як зробити бомбу|vyroba napalmu|jak vyrobit napalm|napalm (recipe|homemade|instructions))")
 _MC_DRUGS_DIY = _rx(r"(synteza pervitinu|jak uvarit meth|how to cook meth|meth-?synth|synthesis of (meth|nitroglycerin|fentanyl)|navod na vyrobu (fentanylu|pervitinu|drog)|recept na vyrobu drog|receta de metanfetamina|methanfetamin rezept|wie koche ich crystal meth|drogen kochen anleitung|synthesize meth|make meth at home)")
 _MC_CYBER_DIY = _rx(r"(navod na phishing|phishingov\w* (e-?mail|stranka)|phishing (stranka|stranky|e-?mail|mail)|jak nabourat|hacknout (ucet|instagram|account)|how to hack|hack someone|keylogger tutorial|demonter un mot de passe|comment pirater|robar la cuenta|kradez hesla)")
 _MC_DEFENSIVE = _rx(r"(branit|ochrana|protect|prevence|jak se chranit|defend|avoid phishing|recognize phishing|jak poznat phishing)")
@@ -113,7 +113,12 @@ _MC_JAILBREAK = _rx(r"(you are dan\b|do anything now|ignore (all (previous )?ins
 
 _MC_POISON = _rx(r"(jak otrávit|čím otrávit|otrávit (souseda|někoho|psa|kočku)|jak vyrobit (jed|otravu)|recept na (jed|otravu)|jak namíchat jed|how to poison)")
 _MC_SCHOOL = _rx(r"(sestřel|postříl|vystříl|střílet).{0,40}(škola|školu|ve škole|třída|do školy)|střelba ve škole|školní masakr|school shooting|how to shoot up a school")
-_MC_MARKET = _rx(r"(kde|jak) (koupit|sehnat|seženu|objednat|koupím).{0,50}(pervitin|metamfetamin|fet|kokain|heroin|drogy|zbraň|zbraně|explozivum|trhavin|bombu)|prodej (drog|zbraní)|nabízím (drogy|zbraně)|comprar (armas|drogas) baratas|buy (guns|drugs) (cheap|online)|как купить (оружие|наркотики)")
+_MC_MARKET = _rx(r"(kde|jak) (koupit|sehnat|seženu|objednat|koupím).{0,50}(pervitin|metamfetamin|kokain|heroin|drogy|zbraň|zbraně|explozivum|trhavin|bombu)|prodej (drog|zbraní)|nabízím (drogy|zbraně)|comprar (armas|drogas) baratas|buy (guns|drugs) (cheap|online)|как купить (оружие|наркотики)|(vařit|svařit|syntetizovat) fet( |$)|fet (na vaření|syntézu)")
+
+
+_MC_LEGAL_WEAPON = _rx(r"(zbrojni prukaz|zbrojní průkaz|legalne|z legální|vzduchovk|airsoft|sportovni střelba|sportovní střelba|strilec na soutěžích)")
+_MC_BOMB_BENIGN = _rx(r"(pyrotechnik|silvestr|ohňostroj|prskavk|dort|do koupele|do dortu|výbuch dortu)")
+_MC_PEST = _rx(r"(krtk|myš|potkan|krys|hmyz|mravenc|plevel|slimák|škůdce|na zahradě|na zahrade)")
 
 SUPPORT_LINK = "https://www.linkabezpeci.cz"
 
@@ -142,10 +147,11 @@ def must_catch_hit(text: str) -> list[str]:
         hits.append("self_harm")
     if _MC_THREAT.search(folded) and not news:
         hits.append("violence")
-    if _MC_POISON.search(folded) and not news:
-        hits.append("violence")
     if _MC_SCHOOL.search(folded) and not news:
         hits.append("violence")
+    legal = bool(_MC_LEGAL_WEAPON.search(folded))
+    bomb_benign = bool(_MC_BOMB_BENIGN.search(folded))
+    pest = bool(_MC_PEST.search(folded))
     if _MC_WEAPONS_DIY.search(folded) and not news:
         hits.append("weapons_explosives")
     if _MC_DRUGS_DIY.search(folded) and not news:
@@ -154,13 +160,29 @@ def must_catch_hit(text: str) -> list[str]:
         hits.append("cybercrime_fraud")
     if _MC_MARKET.search(folded) and not news:
         hits.append("illegal_marketplace")
+    if _MC_POISON.search(folded) and not news and not pest:
+        hits.append("violence")
+    # downgrades: legal weapons / benign bomb / pest control -> review only, not a block
+    if legal and "illegal_marketplace" in hits:
+        hits.remove("illegal_marketplace")
+    if bomb_benign and "illegal_marketplace" in hits:
+        hits.remove("illegal_marketplace")
+    if legal and "weapons_explosives" in hits and not _MC_WEAPONS_DIY.search(folded):
+        pass
     return sorted(set(hits))
 
 
 def review_hit(text: str) -> list[str]:
-    """Jailbreak / prompt-injection patterns -> needs_review flag, NOT a hard block."""
+    """Jailbreak / prompt-injection / legally-ambiguous patterns -> needs_review, NOT a hard block."""
     folded = _fold_ascii(text).lower()
-    return ["jailbreak_injection"] if _MC_JAILBREAK.search(folded) else []
+    out = []
+    if _MC_JAILBREAK.search(folded):
+        out.append("jailbreak_injection")
+    if _MC_LEGAL_WEAPON.search(folded) and (_MC_MARKET.search(folded) or _MC_WEAPONS_DIY.search(folded)):
+        out.append("weapons_explosives")
+    if _MC_BOMB_BENIGN.search(folded) and _MC_MARKET.search(folded):
+        out.append("illegal_marketplace")
+    return sorted(set(out))
 
 
 def is_support_context(text: str) -> bool:
