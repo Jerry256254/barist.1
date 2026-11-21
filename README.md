@@ -1,3 +1,6 @@
+> **Successor: [Barist.2](https://huggingface.co/KucLab/Barist.2)** (GitHub: [Jerry256254/barist.2](https://github.com/Jerry256254/barist.2)) — fifth adversarial review: CSAM/self-harm category hard block, clean 91-row heldout2 (train purged, not the test), cs threshold back to 0.5, regex holes closed, honest per-model gates. This repo is kept as-is.
+
+
 # Barist.1
 
 > **Naming note:** this is the successor of the Censer line (Censer.1–.9). Too many
